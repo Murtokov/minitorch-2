@@ -4,6 +4,7 @@ Be sure you have minitorch installed in you Virtual Env.
 """
 
 import minitorch
+import time
 
 
 def RParam(*shape):
@@ -21,8 +22,15 @@ class Network(minitorch.Module):
         self.layer3 = Linear(hidden_layers, 1)
 
     def forward(self, x):
-        # TODO: Implement for Task 2.5.
-        raise NotImplementedError("Need to implement for Task 2.5")
+        x = self.layer1.forward(x)
+        x = x.relu()
+
+        x = self.layer2.forward(x)
+        x = x.relu()
+
+        x = self.layer3.forward(x)
+        x = x.sigmoid()
+        return x
 
 
 class Linear(minitorch.Module):
@@ -33,8 +41,12 @@ class Linear(minitorch.Module):
         self.out_size = out_size
 
     def forward(self, x):
-        # TODO: Implement for Task 2.5.
-        raise NotImplementedError("Need to implement for Task 2.5")
+        batch, in_size = x.shape
+
+        res = self.bias.value.view(self.out_size)
+        res += (self.weights.value.view(1, in_size, self.out_size) * x.view(batch, in_size, 1)).sum(1).view(batch, self.out_size)
+
+        return res
 
 
 def default_log_fn(epoch, total_loss, correct, losses):
@@ -63,7 +75,9 @@ class TensorTrain:
         y = minitorch.tensor(data.y)
 
         losses = []
+        avg_time = []
         for epoch in range(1, self.max_epochs + 1):
+            start = time.time()
             total_loss = 0.0
             correct = 0
             optim.zero_grad()
@@ -80,16 +94,20 @@ class TensorTrain:
             # Update
             optim.step()
 
+            avg_time.append(time.time() - start)
+
             # Logging
             if epoch % 10 == 0 or epoch == max_epochs:
                 y2 = minitorch.tensor(data.y)
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
                 log_fn(epoch, total_loss, correct, losses)
 
+        print('epoch time:', sum(avg_time) / len(avg_time))
+
 
 if __name__ == "__main__":
     PTS = 50
-    HIDDEN = 2
+    HIDDEN = 8
     RATE = 0.5
-    data = minitorch.datasets["Simple"](PTS)
+    data = minitorch.datasets["Xor"](PTS)
     TensorTrain(HIDDEN).train(data, RATE)
